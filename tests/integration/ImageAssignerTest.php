@@ -460,7 +460,7 @@ class ImageAssignerTest extends TestCase {
 	}
 
 	/**
-	 * With "Don't show added images at the top of the post" on, an added image
+	 * With "Don't show the featured image on the post" on, an added image
 	 * is hidden on the post's own page only, and still used everywhere else.
 	 */
 	public function test_hides_added_image_on_its_own_post_page() {

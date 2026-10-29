@@ -359,14 +359,14 @@ final class Admin_Page {
 					</td>
 				</tr>
 				<tr>
-					<th scope="row"><?php esc_html_e( 'On the post itself', 'wp-category-featured-image-rotator' ); ?></th>
+					<th scope="row"><?php esc_html_e( 'Post page', 'wp-category-featured-image-rotator' ); ?></th>
 					<td>
 						<input type="hidden" name="<?php echo esc_attr( $name ); ?>[hide_on_post]" value="0" />
 						<label>
 							<input type="checkbox" name="<?php echo esc_attr( $name ); ?>[hide_on_post]" value="1" <?php checked( $settings['hide_on_post'] ); ?> />
-							<?php esc_html_e( 'Don’t show added images at the top of the post', 'wp-category-featured-image-rotator' ); ?>
+							<?php esc_html_e( 'Don’t show the featured image on the post', 'wp-category-featured-image-rotator' ); ?>
 						</label>
-						<p class="description"><?php esc_html_e( 'The image is still used in post lists, search results and when the post is shared. Images you choose yourself always show.', 'wp-category-featured-image-rotator' ); ?></p>
+						<p class="description"><?php esc_html_e( 'Only for images added by this plugin. Images you choose yourself always show. The image is still used in post lists, search results and when the post is shared.', 'wp-category-featured-image-rotator' ); ?></p>
 					</td>
 				</tr>
 				<tr>

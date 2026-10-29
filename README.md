@@ -38,8 +38,8 @@ Some details:
 ## How it works
 
 - The plugin only runs for logged-in users who can edit the post. Nothing
-  runs for visitors unless you turn on "Don't show added images at the top
-  of the post", which adds a small display filter on single post pages.
+  runs for visitors unless you turn on "Don't show the featured image on the
+  post", which adds a small display filter on single post pages.
 - Images are set with `set_post_thumbnail()`, the same as choosing a
   featured image by hand, so they work with any theme, SEO plugin or social
   sharing tool, and stay after the plugin is deactivated or deleted.

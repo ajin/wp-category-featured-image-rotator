@@ -17,7 +17,7 @@ First release.
 - Default images for posts whose categories have none.
 - For posts in several categories, the most specific category wins, or a priority order you set.
 - Optional: use the first image already in the post.
-- Optional: don't show added images at the top of the post's own page. They are still used in lists and when the post is shared.
+- Optional: don't show the featured image on the post page. This only applies to images the plugin added, and they are still used in lists and when the post is shared.
 - **Existing posts:** check how many published posts have no featured image, see which, and add images to them.
 
 **Safe and dependable**
