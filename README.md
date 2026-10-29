@@ -7,7 +7,7 @@
 [![PHP 8.0+](https://img.shields.io/badge/PHP-8.0%2B-777bb4?logo=php&logoColor=white)](https://www.php.net/supported-versions.php)
 [![License: GPL v2+](https://img.shields.io/badge/license-GPLv2%2B-blue)](LICENSE)
 
-Automatically gives posts a featured image from images chosen for their category, taking turns so neighbouring posts don't repeat. The images are real WordPress featured images, so they stay even if the plugin is removed.
+Automatically adds a featured image to new posts, using images you've picked for each category. The images take turns, so your posts don't all end up with the same one. They're regular WordPress featured images, so they stay even if you remove the plugin.
 
 ## Download and install
 
@@ -23,33 +23,22 @@ test passes (see [Releasing](#releasing-a-new-version)).
 
 ## Using the plugin
 
-Everything is on one page, **Posts → Featured Images**. It doesn't change or
-depend on any core WordPress screen, so core admin redesigns can't break it.
+Go to **Posts → Featured Images**.
 
-- **Category images** (anyone who can manage categories). It's laid out like
-  Posts → Categories: every category in a list with its images and post
-  count. Click a category (or **Edit images**) to open its edit screen. There
-  you can add images from the Media Library (or upload new ones), drag them
-  into order, remove them, and click **Update**. A **Next** badge shows which
-  image the next post gets. Untick **Use these images for new posts** to pause
-  a category, or tick **Start again from the first image**. A subcategory
-  without images shows whose images it borrows.
-- **Settings** (administrators): on/off, **Images in the post** (use the
-  post's own first Media Library image, before its category's images; off by
-  default), **On the post itself** (don't show added images at the top of the
-  post's own page; they're still used in lists, search and sharing; off by
-  default), image order (take turns or shuffle),
-  default images, and the rules for posts in several categories.
-- **Existing posts:** **Check existing posts** counts published posts
-  without a featured image (in batches, so large sites don't time out). It
-  says how many can be given one now and lets you see which. **Add featured
-  images** then asks for confirmation and works through them oldest first,
-  with progress and a Stop button.
-- **Recently added:** the last assignments.
+1. Click a category, add a few images, and click **Update**.
+2. Publish a post in that category without a featured image. It gets the
+   first image, the next post gets the second, and so on.
 
-Images are added only when a post is **first published** (or scheduled). To
-keep a post without an image, remove the image after publishing. Updates
-never add one, so it stays removed.
+That's it. A few things worth knowing:
+
+- Posts that already have a featured image are never changed.
+- Don't want an image on a particular post? Remove it after publishing. It
+  won't come back.
+- To add images to older posts, use **Existing posts** at the bottom of the
+  page.
+- **Settings**, on the same page, let you shuffle the order, set default
+  images, use a photo that's already in the post, or hide the added image on
+  the post's own page.
 
 ### How it behaves
 
