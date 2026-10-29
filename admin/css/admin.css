@@ -1,0 +1,221 @@
+/* Featured images admin. Colours follow the admin colour scheme. */
+
+/* Image picker */
+
+.cfir-picker__list {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin: 0 0 8px;
+	padding: 0;
+	list-style: none;
+}
+
+.cfir-picker.is-empty .cfir-picker__list {
+	display: none;
+}
+
+.cfir-picker__item {
+	position: relative;
+	width: 96px;
+	height: 96px;
+	margin: 0;
+	overflow: hidden;
+	background: #f0f0f1;
+	border: 1px solid #c3c4c7;
+	border-radius: 2px;
+	cursor: move;
+}
+
+.cfir-picker__item img {
+	display: block;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+.cfir-picker__item.is-next {
+	border-color: var(--wp-admin-theme-color, #2271b1);
+	box-shadow: 0 0 0 1px var(--wp-admin-theme-color, #2271b1);
+}
+
+.cfir-picker__badge {
+	position: absolute;
+	bottom: 4px;
+	left: 4px;
+	padding: 0 6px;
+	color: #fff;
+	font-size: 11px;
+	line-height: 18px;
+	background: var(--wp-admin-theme-color, #2271b1);
+	border-radius: 2px;
+}
+
+.cfir-picker__controls {
+	position: absolute;
+	top: 4px;
+	right: 4px;
+	display: flex;
+	gap: 2px;
+	opacity: 0;
+}
+
+.cfir-picker__item:hover .cfir-picker__controls,
+.cfir-picker__item:focus-within .cfir-picker__controls {
+	opacity: 1;
+}
+
+.cfir-picker__control {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 24px;
+	height: 24px;
+	padding: 0;
+	color: #1d2327;
+	background: rgba(255, 255, 255, 0.9);
+	border: 0;
+	border-radius: 2px;
+	cursor: pointer;
+}
+
+.cfir-picker__control:hover,
+.cfir-picker__control:focus {
+	color: var(--wp-admin-theme-color, #2271b1);
+	background: #fff;
+}
+
+.cfir-picker__control:focus {
+	box-shadow: 0 0 0 2px var(--wp-admin-theme-color, #2271b1);
+	outline: 0;
+}
+
+.cfir-picker__control .dashicons {
+	font-size: 16px;
+	width: 16px;
+	height: 16px;
+}
+
+.cfir-picker__list .ui-sortable-placeholder {
+	width: 96px;
+	height: 96px;
+	visibility: visible !important;
+	border: 1px dashed #8c8f94;
+	border-radius: 2px;
+}
+
+/* Priority */
+
+.cfir-priority {
+	max-width: 520px;
+	margin: 0 0 8px;
+	padding: 0;
+	list-style: none;
+}
+
+.cfir-priority__item {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+	margin: 0 0 4px;
+	padding: 6px 10px;
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 2px;
+	cursor: move;
+}
+
+.cfir-priority__item .dashicons {
+	color: #8c8f94;
+}
+
+/* Thumbnails in the category overview */
+
+.cfir-thumbs {
+	display: inline-flex;
+	gap: 2px;
+	align-items: center;
+}
+
+.cfir-thumbs img {
+	width: 32px;
+	height: 32px;
+	object-fit: cover;
+	border-radius: 2px;
+}
+
+.cfir-thumbs__more,
+.cfir-thumbs__muted {
+	color: #646970;
+}
+
+.cfir-thumbs__more {
+	margin-left: 4px;
+}
+
+/* Existing posts and recently added */
+
+.cfir-table {
+	max-width: 800px;
+	margin-top: 8px;
+}
+
+.cfir-table img {
+	width: 40px;
+	height: 40px;
+	object-fit: cover;
+}
+
+.cfir-bulk__progress {
+	width: 100%;
+	max-width: 400px;
+}
+
+/* WordPress's .button sets display, which would override the hidden attribute. */
+.cfir-bulk [hidden] {
+	display: none;
+}
+
+/* Category list (laid out like Posts → Categories) */
+
+.cfir-search {
+	display: flex;
+	gap: 4px;
+	justify-content: flex-end;
+	margin: 8px 0;
+}
+
+.cfir-categories td {
+	vertical-align: middle;
+}
+
+.cfir-categories__count {
+	width: 74px;
+	text-align: center;
+}
+
+.cfir-categories__images {
+	display: inline-block;
+	text-decoration: none;
+}
+
+.cfir-categories__action {
+	margin-top: 4px;
+	font-size: 13px;
+	visibility: hidden;
+}
+
+.cfir-categories tr:hover .cfir-categories__action,
+.cfir-categories tr:focus-within .cfir-categories__action {
+	visibility: visible;
+}
+
+.cfir-priority__controls {
+	display: flex;
+	gap: 2px;
+	margin-left: auto;
+}
+
+.cfir-search__results {
+	margin: 0 0 8px;
+}

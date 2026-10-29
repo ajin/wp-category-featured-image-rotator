@@ -1,0 +1,106 @@
+<?xml version="1.0"?>
+<ruleset name="Category Featured Image Rotator">
+	<description>Coding, security and compatibility rules. See CLAUDE.md for the reasoning behind each rule.</description>
+
+	<file>.</file>
+	<exclude-pattern>/vendor/*</exclude-pattern>
+	<exclude-pattern>/node_modules/*</exclude-pattern>
+
+	<arg name="extensions" value="php"/>
+	<arg name="colors"/>
+	<arg value="sp"/>
+	<arg name="parallel" value="8"/>
+
+	<!-- Lowest supported versions. Deprecated core APIs at or below this version are errors. -->
+	<config name="minimum_wp_version" value="6.4"/>
+	<config name="testVersion" value="8.0-"/>
+
+	<!-- WordPress Core + Docs + Extra: escaping, sanitising, nonces, prepared SQL,
+	     deprecated functions/classes/parameters, discouraged functions. -->
+	<rule ref="WordPress"/>
+
+	<!-- PHP 8.0+ compatibility, aware of WordPress polyfills. -->
+	<rule ref="PHPCompatibilityWP"/>
+
+	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">
+		<properties>
+			<property name="prefixes" type="array">
+				<element value="cfir"/>
+				<element value="CategoryFeaturedImageRotator"/>
+			</property>
+		</properties>
+	</rule>
+
+	<rule ref="WordPress.WP.I18n">
+		<properties>
+			<property name="text_domain" type="array">
+				<element value="wp-category-featured-image-rotator"/>
+			</property>
+		</properties>
+	</rule>
+
+	<!-- Direct DB queries are not allowed: use core APIs (WP_Query, get_posts, post/term meta). -->
+	<rule ref="WordPress.DB.DirectDatabaseQuery">
+		<type>error</type>
+	</rule>
+
+	<!-- Hard bans. Network access, background/unauthenticated entry points, and shell execution. -->
+	<rule ref="Generic.PHP.ForbiddenFunctions">
+		<properties>
+			<property name="error" value="true"/>
+			<property name="forbiddenFunctions" type="array">
+				<!-- No outbound HTTP of any kind. -->
+				<element key="wp_remote_get" value="null"/>
+				<element key="wp_remote_post" value="null"/>
+				<element key="wp_remote_head" value="null"/>
+				<element key="wp_remote_request" value="null"/>
+				<element key="wp_safe_remote_get" value="null"/>
+				<element key="wp_safe_remote_post" value="null"/>
+				<element key="wp_safe_remote_head" value="null"/>
+				<element key="wp_safe_remote_request" value="null"/>
+				<element key="_wp_http_get_object" value="null"/>
+				<element key="download_url" value="null"/>
+				<element key="media_sideload_image" value="null"/>
+				<element key="wp_get_http_headers" value="null"/>
+				<element key="fetch_feed" value="null"/>
+				<element key="wp_mail" value="null"/>
+				<element key="curl_init" value="null"/>
+				<element key="curl_exec" value="null"/>
+				<element key="curl_multi_exec" value="null"/>
+				<element key="fsockopen" value="null"/>
+				<element key="pfsockopen" value="null"/>
+				<element key="stream_socket_client" value="null"/>
+				<element key="socket_create" value="null"/>
+				<element key="get_headers" value="null"/>
+				<element key="gethostbyname" value="null"/>
+				<element key="dns_get_record" value="null"/>
+				<!-- No unauthenticated / background entry points. -->
+				<element key="register_rest_route" value="null"/>
+				<element key="wp_schedule_event" value="null"/>
+				<element key="wp_schedule_single_event" value="null"/>
+				<element key="as_schedule_single_action" value="null"/>
+				<element key="as_enqueue_async_action" value="null"/>
+				<!-- No code execution. -->
+				<element key="eval" value="null"/>
+				<element key="create_function" value="null"/>
+				<element key="exec" value="null"/>
+				<element key="shell_exec" value="null"/>
+				<element key="system" value="null"/>
+				<element key="passthru" value="null"/>
+				<element key="proc_open" value="null"/>
+				<element key="popen" value="null"/>
+				<element key="assert" value="null"/>
+				<element key="unserialize" value="maybe_unserialize"/>
+				<element key="extract" value="null"/>
+			</property>
+		</properties>
+	</rule>
+
+	<!-- Tests use the WP test framework's own conventions. -->
+	<rule ref="WordPress.Files.FileName">
+		<exclude-pattern>/tests/*</exclude-pattern>
+	</rule>
+	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">
+		<exclude-pattern>/tests/*</exclude-pattern>
+	</rule>
+</ruleset>
