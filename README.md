@@ -9,188 +9,139 @@
 
 Automatically adds a featured image to new posts, using images you've picked for each category. The images take turns, so your posts don't all end up with the same one. They're regular WordPress featured images, so they stay even if you remove the plugin.
 
-## Download and install
+## Install
 
 1. Download `wp-category-featured-image-rotator-<version>.zip` from the
-   [latest release](https://github.com/ajin/wp-category-featured-image-rotator/releases/latest). Download the zip itself, not
-   GitHub's "Source code" archives.
-2. In WordPress, go to **Plugins → Add New Plugin → Upload Plugin**, choose
-   the zip, then **Install Now** and **Activate**.
-3. Go to **Posts → Featured Images**, click a category and add some images.
+   [latest release](https://github.com/ajin/wp-category-featured-image-rotator/releases/latest).
+   Get the plugin zip, not GitHub's "Source code" downloads.
+2. In WordPress, go to Plugins → Add New Plugin → Upload Plugin, choose the
+   zip, and activate it.
 
-Each release is built and published automatically, and only after every
-test passes (see [Releasing](#releasing-a-new-version)).
+## How to use it
 
-## Using the plugin
+Go to Posts → Featured Images.
 
-Go to **Posts → Featured Images**.
-
-1. Click a category, add a few images, and click **Update**.
+1. Click a category, add a few images, and click Update.
 2. Publish a post in that category without a featured image. It gets the
    first image, the next post gets the second, and so on.
 
-That's it. A few things worth knowing:
+Some details:
 
 - Posts that already have a featured image are never changed.
-- Don't want an image on a particular post? Remove it after publishing. It
-  won't come back.
-- To add images to older posts, use **Existing posts** at the bottom of the
-  page.
-- **Settings**, on the same page, let you shuffle the order, set default
+- If you don't want an image on a particular post, remove it after
+  publishing. It won't be added again.
+- To add images to older posts, use Existing posts at the bottom of the page.
+- In Settings, on the same page, you can shuffle the order, set default
   images, use a photo that's already in the post, or hide the added image on
   the post's own page.
 
-### How it behaves
+## How it works
 
-- **No public surface.** Visitors never reach plugin code. Admin code is
-  loaded only in wp-admin, and admin-post/admin-ajax handlers exist only for
-  logged-in users. There are no REST routes, shortcodes, front-end output or
-  cron jobs, and nothing is added to REST responses. The only hook outside
-  wp-admin is `wp_after_insert_post`, and it starts with a capability check.
-  The one exception is opt-in: with **On the post itself** ticked, a display
-  filter (`post_thumbnail_html` / `has_post_thumbnail`) runs on single-post
-  pages. It only hides an image the plugin added.
-- Images are assigned with `set_post_thumbnail()`, so they are ordinary
-  featured images (`_thumbnail_id`) and stay after the plugin is deactivated
-  or deleted. An existing featured image is never replaced.
-- Assignment runs on `wp_after_insert_post`, so the block editor (REST),
-  classic editor, XML-RPC and `wp_insert_post()` all work, but only for a
-  logged-in user who can edit the post. Autosaves and revisions are skipped.
-  There is no editor-specific code, so changes to the block editor's
-  JavaScript APIs can't break it.
-- **Scheduled posts** get their image when an editor schedules them
-  (`future` counts as published). The image is in place when WordPress
-  publishes the post, because the scheduled publish itself runs with no
-  logged-in user.
-- Rotation state is stored per pool in term meta and updated with a
-  compare-and-swap (`update_term_meta()` with `$prev_value`). Two posts
-  published at the same time can't get the same image, and a failed
-  assignment doesn't use up a rotation slot. No custom table or `$wpdb` is
-  needed.
-- Removing or reordering images keeps the rotation going from the last image
-  used. Deleted or non-image attachments are skipped.
-- Uninstalling removes the plugin's options and term meta. It never
-  removes featured images or Media Library files.
+- The plugin only runs for logged-in users who can edit the post. Nothing
+  runs for visitors unless you turn on "Don't show added images at the top
+  of the post", which adds a small display filter on single post pages.
+- Images are set with `set_post_thumbnail()`, the same as choosing a
+  featured image by hand, so they work with any theme, SEO plugin or social
+  sharing tool, and stay after the plugin is deactivated or deleted.
+- An image is added when a post is first published or scheduled, from the
+  block editor, the classic editor, the REST API, XML-RPC or code. Updating
+  a post never adds one.
+- Each category's position in its image list is stored in term meta and
+  updated with a compare-and-swap (`update_term_meta()` with `$prev_value`),
+  so two posts published at the same moment never get the same image. No
+  custom database table is used.
+- If you remove or reorder images, the order carries on from the last image
+  used. Deleted images are skipped.
+- Uninstalling removes the plugin's own settings. Featured images and Media
+  Library files are left alone.
 
-## Requirements
+## Development
 
-To run the plugin locally you need:
+### Requirements
 
-- **[Node.js](https://nodejs.org/en/download)** 20 or newer (ships with `npx`)
-- **[Docker Desktop](https://www.docker.com/products/docker-desktop/)** —
-  running, with the engine available to the current user.
-  `@wordpress/env` uses Docker to spin up WordPress, MySQL and PHP
-  containers. See the
-  [Docker install guide](https://docs.docker.com/desktop/) and the
-  [wp-env "Prerequisites" section](https://developer.wordpress.org/block-editor/reference-guides/packages/packages-env/#prerequisites).
-- **[Git](https://git-scm.com/downloads)**
+- [Node.js](https://nodejs.org/en/download) 20 or newer
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/), running.
+  The local site uses [`@wordpress/env`](https://developer.wordpress.org/block-editor/reference-guides/packages/packages-env/),
+  which runs WordPress, MySQL and PHP in Docker.
+- [Git](https://git-scm.com/downloads)
+- [WP-CLI](https://wp-cli.org/#installing) is handy but not required.
 
-Optional but useful:
+The plugin itself needs WordPress 6.4 or newer and PHP 8.0 or newer.
 
-- **[WP-CLI](https://wp-cli.org/#installing)** for inspecting the running
-  site from your shell
-- A code editor with PHP and HTML support (VS Code recommended)
+### Local setup
 
-The plugin itself targets:
-
-- WordPress **6.4+**
-- PHP **8.0+**
-
-## Dependencies
-
-The repo has a single development dependency, declared in [`package.json`](./package.json):
-
-- **[`@wordpress/env`](https://www.npmjs.com/package/@wordpress/env)** —
-  local WordPress dev environment powered by Docker.
-  Full reference: the
-  [official `@wordpress/env` documentation](https://developer.wordpress.org/block-editor/reference-guides/packages/packages-env/).
-  Configured via [`.wp-env.json`](./.wp-env.json), which mounts this
-  folder as an active plugin on PHP 8.0 and enables `WP_DEBUG`,
-  `WP_DEBUG_LOG` and `SCRIPT_DEBUG`.
-
-There is no build step — PHP, CSS and JS are loaded directly from the
-source tree.
-
-## Getting started
-
-1. Make sure **Docker Desktop is running**.
-2. From the repo root, install the dev dependency:
-
-   ```bash
-   npm install
-   ```
-
-3. Start a clean WordPress instance with the plugin mounted and activated:
-
-   ```bash
-   npx wp-env start
-   ```
-
-   On first run this downloads WordPress core, MySQL, PHP and the WP-CLI
-   container, then boots the stack. Subsequent starts are fast.
-
-4. Open the site:
-
-   - Frontend: <http://localhost:8888>
-   - Admin: <http://localhost:8888/wp-admin>
-     (default user `admin`, password `password`)
-
-## Testing
-
-Project rules (stable public WordPress APIs only, no external calls,
-authenticated contexts only) are documented in [`CLAUDE.md`](./CLAUDE.md) and
-enforced by the test suite. Run it after every change:
+With Docker running, from the repo folder:
 
 ```bash
-npm test
+npm install
 ```
 
-It runs inside the wp-env container (so no local PHP or Composer is needed)
-and requires the environment to be running. On a fresh clone, install the PHP
-dev tools first:
+```bash
+npx wp-env start
+```
+
+The first start downloads WordPress and the containers, so it takes a few
+minutes. After that it's quick. The site runs at <http://localhost:8888>
+and the admin at <http://localhost:8888/wp-admin> (user `admin`, password
+`password`). The plugin is already activated. Settings for the local site
+are in [`.wp-env.json`](./.wp-env.json).
+
+### Tests
+
+The project rules (public WordPress APIs only, no outside connections,
+logged-in users only) are written down in [`CLAUDE.md`](./CLAUDE.md), and
+the tests check them. Install the PHP tools once:
 
 ```bash
 npm run composer -- install
 ```
 
+Then run everything after each change:
+
+```bash
+npm test
+```
+
+The tests run inside the Docker containers, so you don't need PHP or
+Composer on your computer. They use their own database tables, so they
+never touch your local site's content.
+
 | Command | What it does |
 | --- | --- |
-| `npm run lint` | PHPCS: WordPress Coding Standards, security sniffs, deprecated APIs (WP 6.4+), PHP 8.0+ compatibility, banned functions |
-| `npm run lint:fix` | Auto-fix formatting issues |
-| `npm run check:boundaries` | Static checks for private core APIs, `$wpdb`, nopriv/REST/cron entry points, external URLs |
-| `npm run test:php` | PHPUnit integration tests against real WordPress; fails on any outbound HTTP request or deprecation notice |
+| `npm test` | Runs the three checks below |
+| `npm run lint` | Coding standards, security rules and PHP compatibility (PHPCS) |
+| `npm run lint:fix` | Fixes formatting problems automatically |
+| `npm run check:boundaries` | Checks for private WordPress APIs, direct database access, public entry points and outside URLs |
+| `npm run test:php` | PHPUnit tests against a real WordPress. Any outside request or deprecation notice fails the test |
 | `npm run test:php:multisite` | The same tests on a multisite network |
-| `npm run build` | Build the installable zip into `dist/` (only the files the plugin needs) |
+| `npm run build` | Builds the plugin zip in `dist/` |
 
-PHPUnit uses a separate `wptests_` table prefix, so running tests never wipes
-your local dev site.
-
-## Continuous integration
+### Automatic checks on GitHub
 
 Every push to `main` and every pull request runs
-[`.github/workflows/tests.yml`](https://github.com/ajin/wp-category-featured-image-rotator/actions/workflows/tests.yml), which
-sets the **Tests** badge above:
+[the Tests workflow](https://github.com/ajin/wp-category-featured-image-rotator/actions/workflows/tests.yml),
+which also drives the Tests badge at the top of this page. It runs the
+checks above on:
 
-| Job | Checks |
-| --- | --- |
-| WP 6.4 · PHP 8.0 | The oldest supported versions |
-| WP latest · PHP 8.3 | The current release |
-| WP trunk · PHP 8.4 | The next, unreleased WordPress, to catch breakage early |
-| Build and check the plugin zip | Builds the zip, installs it into a clean WordPress, checks it loads with no PHP errors, and keeps it as a downloadable artifact for 30 days |
+- WordPress 6.4 with PHP 8.0, the oldest versions supported
+- the latest WordPress with PHP 8.3
+- the next, unreleased WordPress with PHP 8.4
 
-Each WordPress job runs coding standards, the security boundary checks and
-PHPUnit on both a single site and a multisite network.
+Each of these runs on a single site and on a multisite network. Then the
+workflow builds the plugin zip, installs it on a fresh WordPress, and checks
+that it loads without errors. The zip is kept with the run for 30 days.
 
-## Releasing a new version
+### Releasing a new version
 
-1. Set the version everywhere it appears:
+1. Update the version number in all the places it appears:
 
    ```bash
    bin/set-version.sh 0.2.0
    ```
 
-2. Add a `## 0.2.0` section to `CHANGELOG.md`; it becomes the release notes.
-3. Commit and push to `main`, then tag the release:
+2. Add a `## 0.2.0` section to [`CHANGELOG.md`](./CHANGELOG.md). It's used
+   as the release notes.
+3. Commit, push to `main`, then tag the release:
 
    ```bash
    git tag v0.2.0
@@ -200,39 +151,39 @@ PHPUnit on both a single site and a multisite network.
    git push origin v0.2.0
    ```
 
-Pushing the tag runs [`.github/workflows/release.yml`](https://github.com/ajin/wp-category-featured-image-rotator/actions/workflows/release.yml).
-It runs the full test suite and checks that the tag matches the plugin's
-version. If both pass, it publishes a
-[GitHub release](https://github.com/ajin/wp-category-featured-image-rotator/releases) with the plugin zip and its SHA-256 checksum.
-If anything fails, nothing is published. A version with a suffix such as
-`1.0.0-beta.1` is marked as a pre-release.
+Pushing the tag runs
+[the Release workflow](https://github.com/ajin/wp-category-featured-image-rotator/actions/workflows/release.yml).
+It runs all the tests and checks that the tag matches the plugin's version.
+If everything passes, it publishes a
+[release](https://github.com/ajin/wp-category-featured-image-rotator/releases)
+with the plugin zip and its SHA-256 checksum. If anything fails, nothing is
+published. Versions like `1.0.0-beta.1` are marked as pre-releases.
 
-## Common commands
+### Useful commands
 
-All commands are run from the repo root. Full command reference:
-[`@wordpress/env` CLI docs](https://developer.wordpress.org/block-editor/reference-guides/packages/packages-env/#command-reference).
+Run these from the repo folder. See the
+[`@wordpress/env` docs](https://developer.wordpress.org/block-editor/reference-guides/packages/packages-env/#command-reference)
+for more.
 
 ```bash
-# Start / stop the local environment
+# Start or stop the local site
 npx wp-env start
 npx wp-env stop
 
-# Apply changes to .wp-env.json or after pulling new code
+# Apply changes to .wp-env.json, or after pulling new code
 npx wp-env start --update
 
-# Reset the database back to a fresh install
+# Reset the database to a fresh install
 npx wp-env clean all
 npx wp-env start
 
-# Tail PHP / WordPress logs
+# Show PHP and WordPress logs
 npx wp-env logs
 
-# Run any WP-CLI command inside the container
+# Run a WP-CLI command on the local site
 npx wp-env run cli wp plugin list
-npx wp-env run cli wp option get siteurl
-npx wp-env run cli wp cache flush
 ```
 
-Shortcuts are also available as npm scripts: `npm run env:start`,
+The same commands are available as npm scripts: `npm run env:start`,
 `env:stop`, `env:update`, `env:clean`, `env:logs`, and
-`npm run wp -- <command>` (e.g. `npm run wp -- plugin list`).
+`npm run wp -- <command>`.
