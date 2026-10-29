@@ -1,0 +1,129 @@
+# Runs on every push to main and every pull request, and is reused by the
+# release workflow before anything is published.
+#
+# 1. Tests: coding standards, security boundary checks and PHPUnit (single
+#    site and multisite) on the oldest supported, current and next WordPress.
+# 2. Package: builds the installable zip, installs it into a clean WordPress
+#    and checks it loads, then keeps the zip as a downloadable artifact.
+name: Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  test:
+    name: WP ${{ matrix.wp }} · PHP ${{ matrix.php }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - wp: "6.4 (minimum)"
+            core: "WordPress/WordPress#6.4"
+            php: "8.0"
+          - wp: "latest"
+            core: ""
+            php: "8.3"
+          - wp: "trunk (next)"
+            core: "WordPress/WordPress#master"
+            php: "8.4"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Choose WordPress and PHP version
+        env:
+          CORE: ${{ matrix.core }}
+          PHP: ${{ matrix.php }}
+        run: |
+          # .wp-env.override.json is wp-env's documented per-machine override.
+          if [ -n "$CORE" ]; then
+            jq -n --arg core "$CORE" --arg php "$PHP" '{core: $core, phpVersion: $php}' > .wp-env.override.json
+          else
+            jq -n --arg php "$PHP" '{phpVersion: $php}' > .wp-env.override.json
+          fi
+          cat .wp-env.override.json
+
+      - name: Start WordPress
+        run: npx wp-env start
+
+      - name: Install PHP tools
+        run: npm run composer -- install --no-interaction --no-progress
+
+      - name: Coding standards
+        run: npm run lint
+
+      - name: Security boundary checks
+        run: npm run check:boundaries
+
+      - name: Tests (single site)
+        run: npm run test:php
+
+      - name: Tests (multisite)
+        run: npm run test:php:multisite
+
+  package:
+    name: Build and check the plugin zip
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build zip
+        run: bin/build.sh
+
+      - name: Install the built zip into a clean WordPress
+        run: |
+          # Unzip the exact file users download and load the plugin from it,
+          # not from the source tree, so a file missing from the zip fails here.
+          mkdir -p build && unzip -q dist/*.zip -d build
+          jq -n '{plugins: ["./build/wp-category-featured-image-rotator"]}' > .wp-env.override.json
+          npx wp-env start
+
+      - name: Check the installed plugin works
+        run: |
+          npx wp-env run cli wp plugin is-active wp-category-featured-image-rotator
+          npx wp-env run cli wp eval '
+            CategoryFeaturedImageRotator\Plugin::instance()->admin();
+            CategoryFeaturedImageRotator\Plugin::instance()->bulk();
+            echo "Plugin " . CFIR_VERSION . " loaded with admin screens.\n";
+          '
+          # Activating and loading must not log any PHP errors.
+          if npx wp-env run cli sh -c 'test -s wp-content/debug.log && grep -E "PHP (Fatal|Warning|Notice|Deprecated)" wp-content/debug.log'; then
+            echo "PHP errors were logged." >&2
+            exit 1
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: plugin-zip
+          path: |
+            dist/*.zip
+            dist/*.sha256
+          retention-days: 30

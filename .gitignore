@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+vendor/
+
+# wp-env local overrides
+.wp-env.override.json
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+
+# Test runner cache
+.phpunit.result.cache
+.phpunit.cache/
+
+# Release builds
+dist/
+build/

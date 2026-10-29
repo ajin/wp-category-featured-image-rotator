@@ -1,0 +1,29 @@
+{
+  "name": "wp-category-featured-image-rotator",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Automatically assigns featured images to posts from category-specific image pools.",
+  "license": "GPL-2.0-or-later",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "env:start": "wp-env start",
+    "env:stop": "wp-env stop",
+    "env:update": "wp-env start --update",
+    "env:clean": "wp-env clean all",
+    "env:logs": "wp-env logs",
+    "wp": "wp-env run cli wp",
+    "composer": "wp-env run cli --env-cwd=wp-content/plugins/wp-category-featured-image-rotator composer",
+    "lint": "wp-env run cli --env-cwd=wp-content/plugins/wp-category-featured-image-rotator vendor/bin/phpcs",
+    "lint:fix": "wp-env run cli --env-cwd=wp-content/plugins/wp-category-featured-image-rotator vendor/bin/phpcbf",
+    "check:boundaries": "wp-env run cli --env-cwd=wp-content/plugins/wp-category-featured-image-rotator php bin/check-boundaries.php",
+    "test:php": "wp-env run cli --env-cwd=wp-content/plugins/wp-category-featured-image-rotator env WORDPRESS_TABLE_PREFIX=wptests_ vendor/bin/phpunit",
+    "test": "npm run lint && npm run check:boundaries && npm run test:php",
+    "test:php:multisite": "wp-env run cli --env-cwd=wp-content/plugins/wp-category-featured-image-rotator env WP_MULTISITE=1 WORDPRESS_TABLE_PREFIX=wptests_ vendor/bin/phpunit",
+    "build": "bin/build.sh"
+  },
+  "devDependencies": {
+    "@wordpress/env": "^11.17.0"
+  }
+}

@@ -1,0 +1,68 @@
+# Publishes a release when a version tag is pushed:
+#
+#   bin/set-version.sh 0.2.0      # bump the version everywhere
+#   (add a "## 0.2.0" section to CHANGELOG.md, commit, push)
+#   git tag v0.2.0 && git push origin v0.2.0
+#
+# The full test suite runs first; nothing is published unless it passes and
+# the tag matches the plugin's version.
+name: Release
+
+on:
+  push:
+    tags: [ 'v*' ]
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    uses: ./.github/workflows/tests.yml
+
+  release:
+    name: Publish release
+    needs: tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build zip (the tag must match the plugin version)
+        run: bin/build.sh "${GITHUB_REF_NAME#v}"
+
+      - name: Release notes from CHANGELOG.md
+        id: notes
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          # The "## <version>" section, up to the next "## " heading.
+          awk -v v="$version" '
+            $0 ~ "^## " v "([ (]|$)" { found = 1; next }
+            found && /^## / { exit }
+            found { print }
+          ' CHANGELOG.md > notes.md
+          if [ -s notes.md ]; then
+            echo "from_changelog=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No '## $version' section in CHANGELOG.md; GitHub will generate the notes." >&2
+            echo "from_changelog=false" >> "$GITHUB_OUTPUT"
+          fi
+          printf '\n**Install:** download `wp-category-featured-image-rotator-%s.zip` below, then in WordPress go to Plugins → Add New Plugin → Upload Plugin.\n' "$version" >> notes.md
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FROM_CHANGELOG: ${{ steps.notes.outputs.from_changelog }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          extra=()
+          [ "$FROM_CHANGELOG" = "true" ] || extra+=(--generate-notes)
+          [[ "$version" == *-* ]] && extra+=(--prerelease) # e.g. 1.0.0-beta.1
+          gh release create "$GITHUB_REF_NAME" \
+            "dist/wp-category-featured-image-rotator-$version.zip" \
+            "dist/wp-category-featured-image-rotator-$version.zip.sha256" \
+            --title "Category Featured Image Rotator $version" \
+            --notes-file notes.md \
+            --verify-tag \
+            "${extra[@]}"
