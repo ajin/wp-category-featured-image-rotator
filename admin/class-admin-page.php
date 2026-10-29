@@ -550,29 +550,56 @@ final class Admin_Page {
 	}
 
 	/**
-	 * "Existing posts": find published posts without a featured image, then
-	 * add images to them. Nothing is scanned until the administrator asks, and
-	 * the work happens in small batches (see admin.js and Bulk_Processor).
+	 * "Existing posts": find published posts without a featured image, narrowed
+	 * down by category and date if wanted, then add images to the selected
+	 * posts or to all of them. Nothing is scanned until the administrator asks,
+	 * and the work happens in small batches (see admin.js and Bulk_Processor).
 	 */
 	private function existing_posts(): void {
 		?>
 		<h2><?php esc_html_e( 'Existing posts', 'wp-category-featured-image-rotator' ); ?></h2>
 		<div class="cfir-bulk">
-			<p><?php esc_html_e( 'Give a featured image to posts that were published without one. The oldest posts go first, using the same images and order as new posts.', 'wp-category-featured-image-rotator' ); ?></p>
-			<p>
-				<button type="button" class="button cfir-bulk__check"><?php esc_html_e( 'Check existing posts', 'wp-category-featured-image-rotator' ); ?></button>
-				<button type="button" class="button button-primary cfir-bulk__start" hidden><?php esc_html_e( 'Add featured images', 'wp-category-featured-image-rotator' ); ?></button>
-				<button type="button" class="button cfir-bulk__cancel" hidden><?php esc_html_e( 'Stop', 'wp-category-featured-image-rotator' ); ?></button>
-				<button type="button" class="button-link cfir-bulk__toggle" aria-expanded="false" aria-controls="cfir-bulk-preview" hidden><?php esc_html_e( 'Show which posts', 'wp-category-featured-image-rotator' ); ?></button>
-			</p>
+			<p><?php esc_html_e( 'Add featured images to posts that were published without one. Narrow it down by category or date if you like, then choose the posts.', 'wp-category-featured-image-rotator' ); ?></p>
+			<div class="cfir-bulk__filters">
+				<label>
+					<?php esc_html_e( 'Category', 'wp-category-featured-image-rotator' ); ?>
+					<?php
+					wp_dropdown_categories(
+						array(
+							'taxonomy'        => Settings::TAXONOMY,
+							'name'            => 'cfir-bulk-category',
+							'id'              => 'cfir-bulk-category',
+							'class'           => 'cfir-bulk__category',
+							'show_option_all' => __( 'All categories', 'wp-category-featured-image-rotator' ),
+							'hide_empty'      => false,
+							'hierarchical'    => true,
+							'orderby'         => 'name',
+						)
+					);
+					?>
+				</label>
+				<label>
+					<?php esc_html_e( 'Published from', 'wp-category-featured-image-rotator' ); ?>
+					<input type="date" class="cfir-bulk__from" />
+				</label>
+				<label>
+					<?php esc_html_e( 'to', 'wp-category-featured-image-rotator' ); ?>
+					<input type="date" class="cfir-bulk__to" />
+				</label>
+				<button type="button" class="button cfir-bulk__check"><?php esc_html_e( 'Find posts', 'wp-category-featured-image-rotator' ); ?></button>
+			</div>
 			<div class="cfir-bulk__status" aria-live="polite">
 				<progress class="cfir-bulk__progress" max="100" value="0" hidden></progress>
 				<p class="cfir-bulk__message"></p>
 			</div>
-			<div id="cfir-bulk-preview" hidden>
+			<div class="cfir-bulk__results" hidden>
 				<table class="widefat striped cfir-table">
 					<thead>
 						<tr>
+							<th scope="col" class="cfir-bulk__select">
+								<label class="screen-reader-text" for="cfir-bulk-all"><?php esc_html_e( 'Select all', 'wp-category-featured-image-rotator' ); ?></label>
+								<input type="checkbox" id="cfir-bulk-all" class="cfir-bulk__all" />
+							</th>
 							<th scope="col"><?php esc_html_e( 'Post', 'wp-category-featured-image-rotator' ); ?></th>
 							<th scope="col"><?php esc_html_e( 'Published', 'wp-category-featured-image-rotator' ); ?></th>
 							<th scope="col"><?php esc_html_e( 'Image from', 'wp-category-featured-image-rotator' ); ?></th>
@@ -582,9 +609,14 @@ final class Admin_Page {
 				</table>
 				<p class="description cfir-bulk__more" hidden>
 					<?php
-					/* translators: %d: number of posts shown. */
-					echo esc_html( sprintf( __( 'Showing the oldest %d.', 'wp-category-featured-image-rotator' ), Bulk_Processor::PREVIEW_LIMIT ) );
+					/* translators: %d: number of posts listed. */
+					echo esc_html( sprintf( __( 'Only the oldest %d are listed. Narrow the category or dates to see others, or add images to all matching posts.', 'wp-category-featured-image-rotator' ), Bulk_Processor::PREVIEW_LIMIT ) );
 					?>
+				</p>
+				<p class="cfir-bulk__actions">
+					<button type="button" class="button button-primary cfir-bulk__add-selected" disabled><?php esc_html_e( 'Add featured images to selected posts', 'wp-category-featured-image-rotator' ); ?></button>
+					<button type="button" class="button cfir-bulk__add-all" hidden></button>
+					<button type="button" class="button cfir-bulk__cancel" hidden><?php esc_html_e( 'Stop', 'wp-category-featured-image-rotator' ); ?></button>
 				</p>
 			</div>
 		</div>

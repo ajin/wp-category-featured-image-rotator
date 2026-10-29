@@ -30,7 +30,7 @@ Some details:
 - Posts that already have a featured image are never changed.
 - If you don't want an image on a particular post, remove it after
   publishing. It won't be added again.
-- To add images to older posts, use Existing posts at the bottom of the page.
+- To add images to older posts, use Existing posts at the bottom of the page. You can narrow it down to a category or a date range, and pick the posts you want.
 - In Settings, on the same page, you can shuffle the order, set default
   images, use a photo that's already in the post, or hide the added image on
   the post's own page.

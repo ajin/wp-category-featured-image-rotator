@@ -257,7 +257,8 @@ class AdminTest extends TestCase {
 		$html = $this->view( 'render_list' );
 		$this->assertStringContainsString( 'action="options.php"', $html );
 		$this->assertStringContainsString( 'name="cfir_settings[content_image]"', $html );
-		$this->assertStringContainsString( 'Check existing posts', $html, 'Nothing is scanned until asked.' );
+		$this->assertStringContainsString( 'Find posts', $html, 'Nothing is scanned until asked.' );
+		$this->assertMatchesRegularExpression( '/<select[^>]+name=[\'"]cfir-bulk-category[\'"]/', $html, 'Posts can be narrowed down by category.' );
 
 		$this->act_as( 'editor' );
 		$html = $this->view( 'render_list' );

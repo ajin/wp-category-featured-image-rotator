@@ -202,16 +202,21 @@
 	/* Existing posts -------------------------------------------------------- */
 
 	var $bulk = $( '.cfir-bulk' );
+	var $category = $bulk.find( '.cfir-bulk__category' );
+	var $from = $bulk.find( '.cfir-bulk__from' );
+	var $to = $bulk.find( '.cfir-bulk__to' );
 	var $check = $bulk.find( '.cfir-bulk__check' );
-	var $start = $bulk.find( '.cfir-bulk__start' );
+	var $results = $bulk.find( '.cfir-bulk__results' );
+	var $rows = $bulk.find( '.cfir-bulk__rows' );
+	var $all = $bulk.find( '.cfir-bulk__all' );
+	var $more = $bulk.find( '.cfir-bulk__more' );
+	var $addSelected = $bulk.find( '.cfir-bulk__add-selected' );
+	var $addAll = $bulk.find( '.cfir-bulk__add-all' );
 	var $stop = $bulk.find( '.cfir-bulk__cancel' );
-	var $toggle = $bulk.find( '.cfir-bulk__toggle' );
 	var $progress = $bulk.find( '.cfir-bulk__progress' );
 	var $message = $bulk.find( '.cfir-bulk__message' );
-	var $rows = $bulk.find( '.cfir-bulk__rows' );
-	var $more = $bulk.find( '.cfir-bulk__more' );
-	var $preview = $( '#' + $toggle.attr( 'aria-controls' ) );
-	var previewLimit = 50;
+	var previewLimit = 100;
+	var perRequest = 20;
 	var running = false;
 	var stopping = false;
 	var missing = 0;
@@ -219,11 +224,9 @@
 	var added = 0;
 	var skipped = 0;
 
-	$toggle.on( 'click', function () {
-		var expanded = 'true' === $toggle.attr( 'aria-expanded' );
-		$toggle.attr( 'aria-expanded', String( ! expanded ) ).text( expanded ? __( 'Show which posts', domain ) : __( 'Hide posts', domain ) );
-		$preview.prop( 'hidden', expanded );
-	} );
+	function filters() {
+		return { category: $category.val() || 0, from: $from.val(), to: $to.val() };
+	}
 
 	function errorMessage( response ) {
 		return response && response.data && response.data.message ? response.data.message : __( 'Something went wrong. Images already added are kept; please try again.', domain );
@@ -232,27 +235,19 @@
 	function setRunning( isRunning ) {
 		running = isRunning;
 		stopping = false;
-		$check.prop( 'disabled', isRunning );
-		$start.prop( 'disabled', isRunning );
+		$bulk.find( '.cfir-bulk__filters' ).find( 'select, input, button' ).prop( 'disabled', isRunning );
+		$addAll.prop( 'disabled', isRunning );
 		$stop.prop( 'hidden', ! isRunning ).prop( 'disabled', false );
 		$progress.prop( 'hidden', ! isRunning );
+		updateSelection();
 	}
 
-	function progress( result ) {
-		var done = Math.min( result.next_offset, result.total );
-		$progress.val( result.total ? Math.round( ( done / result.total ) * 100 ) : 100 );
-		/* translators: 1: posts checked so far, 2: total published posts. */
-		$message.text( sprintf( __( 'Checked %1$d of %2$d posts…', domain ), done, result.total ) );
+	function setProgress( done, total ) {
+		$progress.val( total ? Math.round( ( Math.min( done, total ) / total ) * 100 ) : 100 );
 	}
 
-	function request( step, offset, onResult ) {
-		$.post( data.ajaxUrl, {
-			action: data.bulkAction,
-			nonce: data.bulkNonce,
-			step: step,
-			offset: offset,
-			want: Math.max( 0, previewLimit - $rows.children().length ),
-		} )
+	function request( params, onResult ) {
+		$.post( data.ajaxUrl, $.extend( { action: data.bulkAction, nonce: data.bulkNonce }, filters(), params ) )
 			.done( function ( response ) {
 				if ( ! response || ! response.success ) {
 					setRunning( false );
@@ -267,111 +262,188 @@
 			} );
 	}
 
+	function selectable() {
+		return $rows.find( '.cfir-bulk__pick:not(:disabled)' );
+	}
+
+	function updateSelection() {
+		var count = selectable().filter( ':checked' ).length;
+		/* translators: %d: number of selected posts. */
+		$addSelected.text( count ? sprintf( _n( 'Add a featured image to %d selected post', 'Add featured images to %d selected posts', count, domain ), count ) : __( 'Add featured images to selected posts', domain ) );
+		$addSelected.prop( 'disabled', running || ! count );
+		$all.prop( 'checked', count > 0 && count === selectable().length );
+	}
+
 	function addRow( row ) {
 		var $title = row.edit ? $( '<a></a>' ).attr( 'href', row.edit ).text( row.title ) : $( '<span></span>' ).text( row.title );
+		var $pick = $( '<input type="checkbox" class="cfir-bulk__pick" />' )
+			.val( row.id )
+			/* translators: %s: post title. */
+			.attr( 'aria-label', sprintf( __( 'Select %s', domain ), row.title ) )
+			.prop( { checked: row.addable, disabled: ! row.addable } );
 		$( '<tr></tr>' )
+			.attr( 'data-id', row.id )
+			.append( $( '<th scope="row" class="cfir-bulk__select"></th>' ).append( $pick ) )
 			.append( $( '<td></td>' ).append( $title ) )
 			.append( $( '<td></td>' ).text( row.date ) )
-			.append( $( '<td></td>' ).text( row.source ) )
+			.append( $( '<td class="cfir-bulk__source"></td>' ).text( row.source ) )
 			.appendTo( $rows );
 	}
 
-	// Step 1: find the posts without a featured image.
-	function check( offset ) {
-		request( 'check', offset, function ( result ) {
+	// The list no longer matches once the filters change.
+	$bulk.find( '.cfir-bulk__filters' ).on( 'change', 'select, input', function () {
+		if ( ! running ) {
+			$results.prop( 'hidden', true );
+			$message.text( '' );
+		}
+	} );
+
+	$rows.on( 'change', '.cfir-bulk__pick', updateSelection );
+	$all.on( 'change', function () {
+		selectable().prop( 'checked', $all.prop( 'checked' ) );
+		updateSelection();
+	} );
+
+	// Step 1: find matching posts without a featured image.
+	function find( offset ) {
+		request( { step: 'check', offset: offset, want: Math.max( 0, previewLimit - $rows.children().length ) }, function ( result ) {
 			missing += result.missing;
 			addable += result.addable;
 			result.rows.forEach( addRow );
-			progress( result );
+			setProgress( result.next_offset, result.total );
+			/* translators: 1: posts checked so far, 2: matching published posts. */
+			$message.text( sprintf( __( 'Checked %1$d of %2$d posts…', domain ), Math.min( result.next_offset, result.total ), result.total ) );
 			if ( stopping ) {
 				setRunning( false );
 				$message.text( __( 'Stopped.', domain ) );
 			} else if ( ! result.done ) {
-				check( result.next_offset );
+				find( result.next_offset );
 			} else {
 				setRunning( false );
-				$check.text( __( 'Check again', domain ) );
-				if ( ! missing ) {
-					$message.text( __( 'Every published post has a featured image.', domain ) );
-					return;
-				}
-				/* translators: %s: number of posts. */
-				var text = sprintf( _n( '%s published post has no featured image.', '%s published posts have no featured image.', missing, domain ), missing.toLocaleString() );
-				if ( addable === missing ) {
-					text += ' ' + _n( 'It can be given one now.', 'All of them can be given one now.', missing, domain );
-				} else if ( addable ) {
-					/* translators: %s: number of posts. */
-					text += ' ' + sprintf( _n( '%s of them can be given one now; the others are in categories without images.', '%s of them can be given one now; the others are in categories without images.', addable, domain ), addable.toLocaleString() );
-				} else {
-					text += ' ' + _n( 'Its categories have no images yet, so add images to them first.', 'Their categories have no images yet, so add images to them first.', missing, domain );
-				}
-				$message.text( text );
-				$start.prop( 'hidden', ! addable );
-				$toggle.prop( 'hidden', false );
-				$more.prop( 'hidden', missing <= previewLimit );
+				showFound();
 			}
 		} );
 	}
 
-	// Step 2: give them images.
-	function assign( offset ) {
-		request( 'assign', offset, function ( result ) {
+	function showFound() {
+		if ( ! missing ) {
+			$message.text( __( 'Every matching post already has a featured image.', domain ) );
+			return;
+		}
+		/* translators: %s: number of posts. */
+		var text = sprintf( _n( '%s matching post has no featured image.', '%s matching posts have no featured image.', missing, domain ), missing.toLocaleString() );
+		if ( ! addable ) {
+			text += ' ' + _n( 'Its categories have no images yet, so add images to them first.', 'Their categories have no images yet, so add images to them first.', missing, domain );
+		} else if ( addable < missing ) {
+			/* translators: %s: number of posts. */
+			text += ' ' + sprintf( _n( '%s of them can be given one now; the others are in categories without images.', '%s of them can be given one now; the others are in categories without images.', addable, domain ), addable.toLocaleString() );
+		}
+		$message.text( text );
+		$results.prop( 'hidden', false );
+		$more.prop( 'hidden', missing <= previewLimit );
+		var listedAddable = $rows.find( '.cfir-bulk__pick:not(:disabled)' ).length;
+		// Offer "all matching" when more posts can get an image than are listed.
+		$addAll.prop( 'hidden', addable <= listedAddable )
+			/* translators: %s: number of posts. */
+			.text( sprintf( _n( 'Add to all %s matching post', 'Add to all %s matching posts', addable, domain ), addable.toLocaleString() ) );
+		updateSelection();
+	}
+
+	function summary() {
+		/* translators: %d: number of posts. */
+		var text = sprintf( _n( 'A featured image was added to %d post.', 'Featured images were added to %d posts.', added, domain ), added );
+		if ( skipped ) {
+			text += ' ' + sprintf(
+				/* translators: %d: number of posts. */
+				_n( '%d post could not be given an image.', '%d posts could not be given an image.', skipped, domain ),
+				skipped
+			);
+		}
+		return text;
+	}
+
+	// Step 2a: add images to the selected posts, showing the result on each row.
+	function addSelected( ids, done ) {
+		var batch = ids.slice( done, done + perRequest );
+		request( { step: 'assign_selected', ids: batch }, function ( result ) {
 			added += result.assigned;
 			skipped += result.skipped;
-			progress( result );
-			var summary = sprintf(
-				/* translators: %d: number of posts. */
-				_n( 'A featured image was added to %d post.', 'Featured images were added to %d posts.', added, domain ),
-				added
-			);
-			if ( skipped ) {
-				summary += ' ' + sprintf(
-					/* translators: %d: number of posts. */
-					_n( '%d post could not be given an image, usually because none of its categories have images.', '%d posts could not be given an image, usually because none of their categories have images.', skipped, domain ),
-					skipped
-				);
+			result.results.forEach( function ( item ) {
+				var $row = $rows.find( 'tr[data-id="' + parseInt( item.id, 10 ) + '"]' );
+				$row.find( '.cfir-bulk__pick' ).prop( { checked: false, disabled: true } );
+				$row.find( '.cfir-bulk__source' ).text( item.message );
+			} );
+			done += batch.length;
+			setProgress( done, ids.length );
+			if ( stopping || done >= ids.length ) {
+				setRunning( false );
+				$message.text( ( stopping ? __( 'Stopped.', domain ) + ' ' : __( 'Done.', domain ) + ' ' ) + summary() );
+			} else {
+				addSelected( ids, done );
 			}
+		} );
+	}
+
+	// Step 2b: add images to every matching post.
+	function addAll( offset ) {
+		request( { step: 'assign', offset: offset }, function ( result ) {
+			added += result.assigned;
+			skipped += result.skipped;
+			setProgress( result.next_offset, result.total );
 			if ( stopping ) {
 				setRunning( false );
-				$message.text( __( 'Stopped.', domain ) + ' ' + summary + ' ' + __( 'You can continue at any time.', domain ) );
+				$message.text( __( 'Stopped.', domain ) + ' ' + summary() + ' ' + __( 'You can continue at any time.', domain ) );
 			} else if ( ! result.done ) {
-				assign( result.next_offset );
+				addAll( result.next_offset );
 			} else {
 				setRunning( false );
 				// The list is out of date now: show the result instead.
-				$start.prop( 'hidden', true );
-				$toggle.prop( 'hidden', true ).attr( 'aria-expanded', 'false' ).text( __( 'Show which posts', domain ) );
-				$preview.prop( 'hidden', true );
-				$message.text( __( 'Done.', domain ) + ' ' + summary );
+				$results.prop( 'hidden', true );
+				$message.text( __( 'Done.', domain ) + ' ' + summary() );
 			}
 		} );
+	}
+
+	function confirmAdd( count ) {
+		var question = sprintf(
+			/* translators: %d: number of posts. */
+			_n( 'Add a featured image to %d published post? You can remove it from the post afterwards if you change your mind.', 'Add featured images to %d published posts? You can remove them from the posts afterwards if you change your mind.', count, domain ),
+			count
+		);
+		// eslint-disable-next-line no-alert -- Same confirmation core uses before bulk changes.
+		return ! running && window.confirm( question );
 	}
 
 	$check.on( 'click', function () {
 		missing = 0;
 		addable = 0;
 		$rows.empty();
-		$start.prop( 'hidden', true );
-		$toggle.prop( 'hidden', true );
-		$preview.prop( 'hidden', true );
+		$results.prop( 'hidden', true );
 		setRunning( true );
-		check( 0 );
+		find( 0 );
 	} );
 
-	$start.on( 'click', function () {
-		var question = sprintf(
-			/* translators: %d: number of posts. */
-			_n( 'Add a featured image to %d published post? You can remove it from the post afterwards if you change your mind.', 'Add featured images to %d published posts? You can remove them from the posts afterwards if you change your mind.', addable, domain ),
-			addable
-		);
-		// eslint-disable-next-line no-alert -- Same confirmation core uses before bulk changes.
-		if ( running || ! window.confirm( question ) ) {
+	$addSelected.on( 'click', function () {
+		var ids = selectable().filter( ':checked' ).map( function () {
+			return parseInt( this.value, 10 );
+		} ).get();
+		if ( ! ids.length || ! confirmAdd( ids.length ) ) {
 			return;
 		}
 		added = 0;
 		skipped = 0;
 		setRunning( true );
-		assign( 0 );
+		addSelected( ids, 0 );
+	} );
+
+	$addAll.on( 'click', function () {
+		if ( ! confirmAdd( addable ) ) {
+			return;
+		}
+		added = 0;
+		skipped = 0;
+		setRunning( true );
+		addAll( 0 );
 	} );
 
 	$stop.on( 'click', function () {

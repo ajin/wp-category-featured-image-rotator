@@ -2,6 +2,13 @@
 
 Each `## <version>` section becomes the notes of the matching GitHub release.
 
+## 0.2.0
+
+- Existing posts: you can now narrow the list to a category (including its
+  subcategories) or a range of publish dates, and choose which posts get an
+  image. Each post in the list shows what happened to it. You can still add
+  images to all matching posts at once.
+
 ## 0.1.1
 
 - Clearer wording for the setting that hides the featured image on the post

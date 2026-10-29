@@ -219,3 +219,29 @@
 .cfir-search__results {
 	margin: 0 0 8px;
 }
+
+/* Existing posts: filters and selection */
+
+.cfir-bulk__filters {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px;
+	align-items: flex-end;
+	margin: 12px 0;
+}
+
+.cfir-bulk__filters label {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.cfir-bulk__select {
+	width: 2.2em;
+}
+
+.cfir-bulk__actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}

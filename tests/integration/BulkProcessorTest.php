@@ -67,11 +67,12 @@ class BulkProcessorTest extends TestCase {
 	 * @param string $step   "check" or "assign".
 	 * @param int    $offset Posts already handled.
 	 * @param int    $want   Posts to describe (check step).
+	 * @param array  $extra  Filters or selected IDs.
 	 * @return array
 	 */
-	private function batch( string $step, int $offset = 0, int $want = 0 ): array {
+	private function batch( string $step, int $offset = 0, int $want = 0, array $extra = array() ): array {
 		$result = Plugin::instance()->bulk()->run_batch(
-			array(
+			$extra + array(
 				'nonce'  => wp_create_nonce( Bulk_Processor::NONCE ),
 				'step'   => $step,
 				'offset' => $offset,
@@ -248,5 +249,152 @@ class BulkProcessorTest extends TestCase {
 
 		$this->run_all();
 		$this->assertSame( $inline, $this->thumbnail( $post ) );
+	}
+
+	/**
+	 * Create an existing post (no image) published on a given day.
+	 *
+	 * @param int[]  $categories Categories.
+	 * @param string $date       Y-m-d.
+	 * @return int
+	 */
+	private function existing_post_on( array $categories, string $date ): int {
+		Settings::update( array( 'enabled' => false ) );
+		$post = $this->create_post( $categories, array( 'post_date' => $date . ' 12:00:00' ) );
+		Settings::update( array( 'enabled' => true ) );
+		return $post;
+	}
+
+	/**
+	 * Finding and adding can be narrowed to a category, including its
+	 * subcategories.
+	 */
+	public function test_category_filter() {
+		$sub    = $this->create_category( 'Youth Chess', $this->cat );
+		$other  = $this->create_pool( 'Events', $this->create_images( 1, 'events' ) );
+		$in_cat = $this->existing_post_on( array( $this->cat ), '2024-01-01' );
+		$in_sub = $this->existing_post_on( array( $sub ), '2024-01-02' );
+		$out    = $this->existing_post_on( array( $other ), '2024-01-03' );
+
+		$found = $this->batch( 'check', 0, 10, array( 'category' => $this->cat ) );
+		$this->assertSame( 2, $found['missing'] );
+		$this->assertSame( array( $in_cat, $in_sub ), wp_list_pluck( $found['rows'], 'id' ) );
+
+		$this->batch( 'assign', 0, 0, array( 'category' => $this->cat ) );
+		$this->assertNotSame( 0, $this->thumbnail( $in_cat ) );
+		$this->assertNotSame( 0, $this->thumbnail( $in_sub ) );
+		$this->assertSame( 0, $this->thumbnail( $out ), 'Posts outside the category are left alone.' );
+	}
+
+	/**
+	 * Finding and adding can be narrowed to a publish date range (inclusive).
+	 */
+	public function test_date_filter() {
+		$before = $this->existing_post_on( array( $this->cat ), '2024-01-31' );
+		$first  = $this->existing_post_on( array( $this->cat ), '2024-02-01' );
+		$last   = $this->existing_post_on( array( $this->cat ), '2024-02-29' );
+		$after  = $this->existing_post_on( array( $this->cat ), '2024-03-01' );
+		$range  = array(
+			'from' => '2024-02-01',
+			'to'   => '2024-02-29',
+		);
+
+		$this->assertSame( array( $first, $last ), wp_list_pluck( $this->batch( 'check', 0, 10, $range )['rows'], 'id' ) );
+
+		$this->batch( 'assign', 0, 0, $range );
+		$this->assertSame( 0, $this->thumbnail( $before ) );
+		$this->assertNotSame( 0, $this->thumbnail( $first ) );
+		$this->assertNotSame( 0, $this->thumbnail( $last ) );
+		$this->assertSame( 0, $this->thumbnail( $after ) );
+	}
+
+	/**
+	 * Bad filters are refused with a clear message.
+	 */
+	public function test_rejects_bad_filters() {
+		$bulk = Plugin::instance()->bulk();
+		$base = array(
+			'nonce' => wp_create_nonce( Bulk_Processor::NONCE ),
+			'step'  => 'check',
+		);
+		$this->assertSame( 'cfir_bad_category', $bulk->run_batch( $base + array( 'category' => 999999 ) )->get_error_code() );
+		$this->assertSame( 'cfir_bad_date', $bulk->run_batch( $base + array( 'from' => '2024-02-30' ) )->get_error_code() );
+		$this->assertSame( 'cfir_bad_date', $bulk->run_batch( $base + array( 'to' => 'yesterday' ) )->get_error_code() );
+		$this->assertSame(
+			'cfir_bad_range',
+			$bulk->run_batch(
+				$base + array(
+					'from' => '2024-03-01',
+					'to'   => '2024-02-01',
+				)
+			)->get_error_code()
+		);
+	}
+
+	/**
+	 * Only the selected posts get images, and each reports what happened.
+	 * Anything that isn't a published post without an image is refused.
+	 */
+	public function test_assign_selected_posts() {
+		$chosen  = $this->existing_post_on( array( $this->cat ), '2024-01-01' );
+		$skipped = $this->existing_post_on( array( $this->cat ), '2024-01-02' );
+		$has_one = $this->existing_post_on( array( $this->cat ), '2024-01-03' );
+		$manual  = $this->create_image( 'manual.jpg' );
+		$draft   = self::factory()->post->create( array( 'post_status' => 'draft' ) );
+		$page    = self::factory()->post->create(
+			array(
+				'post_type'   => 'page',
+				'post_status' => 'publish',
+			)
+		);
+		set_post_thumbnail( $has_one, $manual );
+
+		$result  = $this->batch( 'assign_selected', 0, 0, array( 'ids' => array( $chosen, $has_one, $draft, $page ) ) );
+		$by_post = array_column( $result['results'], null, 'id' );
+
+		$this->assertSame( 1, $result['assigned'] );
+		$this->assertSame( 3, $result['skipped'] );
+		$this->assertTrue( $by_post[ $chosen ]['added'] );
+		$this->assertSame( 'Added, from Chess', $by_post[ $chosen ]['message'] );
+		$this->assertSame( $this->images[0], $this->thumbnail( $chosen ) );
+		$this->assertSame( 0, $this->thumbnail( $skipped ), 'Unselected posts are left alone.' );
+		$this->assertSame( $manual, $this->thumbnail( $has_one ), 'An existing image is kept.' );
+		$this->assertFalse( $by_post[ $draft ]['added'] );
+		$this->assertSame( 0, $this->thumbnail( $draft ) );
+		$this->assertSame( 0, $this->thumbnail( $page ) );
+	}
+
+	/**
+	 * At most 20 selected posts are handled per request.
+	 */
+	public function test_selected_posts_are_batched() {
+		$posts = array();
+		for ( $i = 1; $i <= 25; $i++ ) {
+			$posts[] = $this->existing_post_on( array( $this->cat ), sprintf( '2024-01-%02d', $i ) );
+		}
+
+		$result = $this->batch( 'assign_selected', 0, 0, array( 'ids' => $posts ) );
+
+		$this->assertCount( Bulk_Processor::SELECTED_PER_REQUEST, $result['results'] );
+		$this->assertSame( 0, $this->thumbnail( $posts[24] ) );
+	}
+
+	/**
+	 * Selecting posts needs the same capability and nonce as everything else.
+	 */
+	public function test_assign_selected_requires_capability() {
+		$post = $this->existing_post_on( array( $this->cat ), '2024-01-01' );
+		$this->act_as( 'editor' );
+
+		$result = Plugin::instance()->bulk()->run_batch(
+			array(
+				'nonce' => wp_create_nonce( Bulk_Processor::NONCE ),
+				'step'  => 'assign_selected',
+				'ids'   => array( $post ),
+			)
+		);
+
+		$this->assertSame( 'cfir_forbidden', $result->get_error_code() );
+		$this->assertSame( 0, $this->thumbnail( $post ) );
 	}
 }
